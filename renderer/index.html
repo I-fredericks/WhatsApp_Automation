@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WhatsApp Bulk Campaign Tool - VIP Version</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <h1>WhatsApp Bulk Campaign Tool</h1>
+      <span class="subtitle">v1.0.0</span>
+    </div>
+    <div class="license-badge">
+      <span class="dot active"></span>
+      <span id="license-text">VIP Version - Active</span>
+    </div>
+  </header>
+
+  <main class="app-container">
+    <!-- WhatsApp Connection Panel -->
+    <section class="panel connection-panel">
+      <h2>WhatsApp Connection</h2>
+      <div class="connection-controls">
+        <button id="btn-connect" class="btn primary">Connect WhatsApp</button>
+        <button id="btn-disconnect" class="btn secondary" disabled>Disconnect</button>
+      </div>
+      <div id="qr-container" class="qr-container hidden">
+        <p>Scan the QR code with WhatsApp on your phone:</p>
+        <img id="qr-image" alt="WhatsApp QR Code" />
+      </div>
+      <div id="connection-status" class="connection-status">Status: Disconnected</div>
+    </section>
+
+    <!-- Bulk Number Import Panel -->
+    <section class="panel">
+      <h2>Bulk Number Import</h2>
+      <p class="hint">Upload a .txt file with one phone number per line (international format, no +).</p>
+      <div class="file-controls">
+        <button id="btn-import" class="btn primary">Import .txt File</button>
+        <button id="btn-clear-numbers" class="btn secondary">Clear List</button>
+      </div>
+      <div class="numbers-summary">
+        <span>Imported numbers:</span>
+        <strong id="numbers-count">0</strong>
+      </div>
+      <textarea id="numbers-preview" class="numbers-preview" readonly placeholder="Imported numbers will appear here..."></textarea>
+    </section>
+
+    <!-- Campaign Message Panel -->
+    <section class="panel">
+      <h2>Campaign Message</h2>
+      <textarea id="campaign-message" class="campaign-message" placeholder="Type your promotional or campaign message here..."></textarea>
+      <div class="message-actions">
+        <button id="btn-save-message" class="btn secondary">Save Message</button>
+      </div>
+    </section>
+
+    <!-- Anti-Ban Delay Panel -->
+    <section class="panel delay-panel">
+      <h2>Anti-Ban Protection</h2>
+      <p class="hint">Randomized wait time between messages (in seconds).</p>
+      <div class="delay-inputs">
+        <label>
+          Min Delay (s)
+          <input id="delay-min" type="number" min="1" value="120" />
+        </label>
+        <label>
+          Max Delay (s)
+          <input id="delay-max" type="number" min="1" value="240" />
+        </label>
+      </div>
+      <button id="btn-save-delay" class="btn secondary">Save Delay Settings</button>
+    </section>
+
+    <!-- AI Auto-Reply Panel -->
+    <section class="panel">
+      <h2>AI-Powered Auto-Reply</h2>
+      <label class="checkbox-label">
+        <input id="autoreply-enabled" type="checkbox" />
+        Enable ChatGPT Auto-Reply
+      </label>
+      <label class="input-label">
+        OpenAI API Key
+        <input id="openai-key" type="password" placeholder="sk-..." />
+      </label>
+      <label class="input-label">
+        AI Model
+        <input id="openai-model" type="text" value="gpt-4o-mini" />
+      </label>
+      <button id="btn-save-autoreply" class="btn secondary">Save Auto-Reply Settings</button>
+    </section>
+
+    <!-- Execution Panel -->
+    <section class="panel execution-panel">
+      <h2>Campaign Execution</h2>
+      <div class="execution-controls">
+        <button id="btn-start" class="btn start">Start Bot</button>
+        <button id="btn-stop" class="btn stop" disabled>Stop Bot</button>
+      </div>
+      <div class="progress-bar">
+        <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+      </div>
+      <div class="stats">
+        <div>Total: <strong id="stat-total">0</strong></div>
+        <div>Sent: <strong id="stat-sent">0</strong></div>
+        <div>Failed: <strong id="stat-failed">0</strong></div>
+        <div>Remaining: <strong id="stat-remaining">0</strong></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div id="status-bar">Durum: Hazır ve Bekleniyor... / Status: Ready and Waiting...</div>
+  </footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

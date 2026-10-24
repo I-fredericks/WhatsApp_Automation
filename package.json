@@ -1,0 +1,29 @@
+{
+  "name": "whatsapp-bulk-campaign-tool",
+  "version": "1.0.0",
+  "description": "WhatsApp bulk messaging campaign tool with AI auto-reply and anti-ban protection",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "whatsapp",
+    "bulk-messaging",
+    "automation",
+    "campaign",
+    "chatgpt"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.0",
+    "openai": "^4.68.0",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.0",
+    "whatsapp-web.js": "^1.34.7"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.4"
+  }
+}
