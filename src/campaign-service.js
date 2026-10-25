@@ -4,7 +4,7 @@
  */
 
 const { EventEmitter } = require('events');
-const { randomDelay } = require('./utils');
+const { randomDelay, sleep } = require('./utils');
 
 class CampaignService extends EventEmitter {
   constructor(whatsappClient) {
@@ -12,6 +12,7 @@ class CampaignService extends EventEmitter {
     this.whatsappClient = whatsappClient;
     this._isRunning = false;
     this._shouldStop = false;
+    this._sentByAccount = 0;
     this._stats = {
       total: 0,
       sent: 0,
@@ -39,8 +40,18 @@ class CampaignService extends EventEmitter {
    * @param {string[]} numbers list of sanitized international phone numbers
    * @param {string} message
    * @param {{minDelay: number, maxDelay: number}} delayOptions delay in seconds
+   * @param {{enabled: boolean, maxPerAccount: number, switchPauseSeconds: number}|null} [rotation]
+   *   when enabled, switches to the next linked account after maxPerAccount sends
+   * @param {() => Promise<void>} [rotateAccount] async callback that performs the
+   *   account switch (destroys the current browser and connects the next one)
    */
-  async start(numbers, message, delayOptions = { minDelay: 120, maxDelay: 240 }) {
+  async start(
+    numbers,
+    message,
+    delayOptions = { minDelay: 120, maxDelay: 240 },
+    rotation = null,
+    rotateAccount = null,
+  ) {
     if (this._isRunning) {
       throw new Error('A campaign is already running.');
     }
@@ -56,6 +67,7 @@ class CampaignService extends EventEmitter {
 
     this._isRunning = true;
     this._shouldStop = false;
+    this._sentByAccount = 0;
     this._stats = {
       total: numbers.length,
       sent: 0,
@@ -66,6 +78,9 @@ class CampaignService extends EventEmitter {
     this.emit('started', { ...this._stats });
 
     const { minDelay, maxDelay } = delayOptions;
+    const rotationEnabled = Boolean(rotation && rotation.enabled && typeof rotateAccount === 'function');
+    const maxPerAccount = Math.max(1, Number(rotation?.maxPerAccount) || 50);
+    const switchPauseSeconds = Math.max(0, Number(rotation?.switchPauseSeconds) || 0);
 
     for (let i = 0; i < numbers.length; i++) {
       if (this._shouldStop) {
@@ -84,9 +99,35 @@ class CampaignService extends EventEmitter {
         this._stats.failed += 1;
         this.emit('messageFailed', { number, index: i + 1, error: err.message });
       }
+      this._sentByAccount += 1;
 
       this._stats.remaining = numbers.length - (i + 1);
       this.emit('progress', { ...this._stats });
+
+      // Account rotation: pause, let the caller switch to the next linked
+      // account, then continue with the rest of the list.
+      if (
+        rotationEnabled &&
+        this._sentByAccount >= maxPerAccount &&
+        i < numbers.length - 1 &&
+        !this._shouldStop
+      ) {
+        this.emit('status', `Account limit of ${maxPerAccount} messages reached. Waiting ${switchPauseSeconds}s before switching...`);
+        await this._waitWithStopCheck(switchPauseSeconds * 1000);
+        if (this._shouldStop) {
+          this.emit('status', 'Campaign stopped by user.');
+          break;
+        }
+        try {
+          await rotateAccount();
+          this._sentByAccount = 0;
+          this.emit('accountSwitched', { afterMessages: maxPerAccount, index: i + 1 });
+        } catch (err) {
+          this.emit('error', `Account rotation failed: ${err.message}`);
+          this.emit('status', 'Campaign stopped: account rotation failed.');
+          break;
+        }
+      }
 
       if (i < numbers.length - 1 && !this._shouldStop) {
         this.emit('status', `Waiting anti-ban delay (${minDelay}s-${maxDelay}s)...`);
@@ -97,6 +138,19 @@ class CampaignService extends EventEmitter {
     this._isRunning = false;
     this.emit('finished', { ...this._stats });
     this.emit('status', 'Campaign finished.');
+  }
+
+  /**
+   * Sleep in short steps so a stop request interrupts the wait quickly.
+   * @param {number} ms total time to wait
+   */
+  async _waitWithStopCheck(ms) {
+    const step = 500;
+    let waited = 0;
+    while (waited < ms && !this._shouldStop) {
+      await sleep(Math.min(step, ms - waited));
+      waited += step;
+    }
   }
 
   /**

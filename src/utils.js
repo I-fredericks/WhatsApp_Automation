@@ -45,16 +45,17 @@ function sanitizePhoneNumber(raw) {
 }
 
 /**
- * Parse numbers from a text file content. One number per line.
- * Empty lines and invalid entries are skipped.
+ * Parse numbers from raw text. Supports one number per line or comma-separated
+ * values. Empty/invalid entries are skipped and duplicates are removed.
  * @param {string} content
  * @returns {string[]}
  */
 function parseNumberList(content) {
-  return content
-    .split(/\r?\n/)
-    .map((line) => sanitizePhoneNumber(line))
-    .filter(Boolean);
+  const rawEntries = String(content)
+    .split(/[\r?\n,]+/)
+    .map((entry) => entry.trim());
+
+  return [...new Set(rawEntries.map((entry) => sanitizePhoneNumber(entry)).filter(Boolean))];
 }
 
 /**
@@ -67,6 +68,38 @@ function formatWhatsAppId(number) {
   return `${number}@c.us`;
 }
 
+/**
+ * Parse a proxy string into a normalized URL object.
+ * Accepts: host:port, http://host:port, http://user:pass@host:port, socks5://host:port
+ * @param {string} raw
+ * @returns {URL|null} parsed URL or null when invalid
+ */
+function parseProxyUrl(raw) {
+  if (!raw || typeof raw !== 'string') {
+    return null;
+  }
+  let candidate = raw.trim();
+  if (!candidate) {
+    return null;
+  }
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(candidate)) {
+    candidate = `http://${candidate}`;
+  }
+  try {
+    const url = new URL(candidate);
+    if (!url.hostname || !url.port) {
+      return null;
+    }
+    const port = Number(url.port);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      return null;
+    }
+    return url;
+  } catch (err) {
+    return null;
+  }
+}
+
 module.exports = {
   sleep,
   randomInt,
@@ -74,4 +107,5 @@ module.exports = {
   sanitizePhoneNumber,
   parseNumberList,
   formatWhatsAppId,
+  parseProxyUrl,
 };

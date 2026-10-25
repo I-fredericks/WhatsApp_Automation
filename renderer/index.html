@@ -23,14 +23,74 @@
     <section class="panel connection-panel">
       <h2>WhatsApp Connection</h2>
       <div class="connection-controls">
-        <button id="btn-connect" class="btn primary">Connect WhatsApp</button>
+        <button id="btn-connect" class="btn primary">Connect with QR</button>
         <button id="btn-disconnect" class="btn secondary" disabled>Disconnect</button>
+        <button id="btn-logout" class="btn danger" disabled>Logout &amp; Reset</button>
+      </div>
+      <div class="proxy-connect">
+        <p class="hint">Proxy (optional, saved per account — the account connects through its own IP, including during rotation): host:port or http://user:pass@host:port</p>
+        <label class="input-label">
+          Proxy for Active Account
+          <input id="proxy-url" type="text" placeholder="e.g. 45.12.30.22:8080 or http://user:pass@proxy.io:8000" />
+        </label>
+        <button id="btn-set-proxy" class="btn secondary">Save Proxy for Active Account</button>
+      </div>
+      <div class="phone-connect">
+        <p class="hint">Or link with your phone number:</p>
+        <label class="input-label">
+          Phone Number (international, no +)
+          <input id="phone-number" type="text" placeholder="905551234567" />
+        </label>
+        <button id="btn-connect-phone" class="btn primary">Get Pairing Code</button>
       </div>
       <div id="qr-container" class="qr-container hidden">
         <p>Scan the QR code with WhatsApp on your phone:</p>
         <img id="qr-image" alt="WhatsApp QR Code" />
       </div>
+      <div id="pairing-code-container" class="pairing-code-container hidden">
+        <p>Enter this pairing code in WhatsApp on your phone:</p>
+        <div id="pairing-code" class="pairing-code"></div>
+      </div>
       <div id="connection-status" class="connection-status">Status: Disconnected</div>
+    </section>
+
+    <!-- Accounts Panel -->
+    <section class="panel accounts-panel">
+      <h2>WhatsApp Accounts</h2>
+      <div class="accounts-controls">
+        <select id="accounts-select" class="accounts-select"></select>
+        <button id="btn-switch-account" class="btn primary" disabled>Switch To</button>
+        <button id="btn-remove-account" class="btn danger">Remove</button>
+      </div>
+      <div class="accounts-add">
+        <input id="new-account-label" type="text" placeholder="New account name (e.g. Sales Line 2)" />
+        <button id="btn-add-account" class="btn secondary">Add Account</button>
+      </div>
+      <table class="accounts-table">
+        <thead>
+          <tr><th>Account</th><th>Linked</th><th>Proxy</th><th>Sent</th><th>Failed</th></tr>
+        </thead>
+        <tbody id="accounts-tbody"></tbody>
+      </table>
+      <p class="hint">The active account is used for connecting and campaigns. With rotation enabled below, linked accounts take turns: each one sends up to the limit, then the bot pauses and continues with the next linked account.</p>
+      <div class="rotation-controls">
+        <h3>Account Rotation</h3>
+        <label class="checkbox-label">
+          <input id="rotation-enabled" type="checkbox" />
+          Auto-rotate linked accounts while sending
+        </label>
+        <div class="delay-inputs">
+          <label>
+            Switch After (messages)
+            <input id="rotation-max" type="number" min="1" value="50" />
+          </label>
+          <label>
+            Switch Pause (s)
+            <input id="rotation-pause" type="number" min="1" value="60" />
+          </label>
+        </div>
+        <button id="btn-save-rotation" class="btn secondary">Save Rotation Settings</button>
+      </div>
     </section>
 
     <!-- Bulk Number Import Panel -->
@@ -40,6 +100,13 @@
       <div class="file-controls">
         <button id="btn-import" class="btn primary">Import .txt File</button>
         <button id="btn-clear-numbers" class="btn secondary">Clear List</button>
+      </div>
+      <div class="add-number">
+        <label class="input-label">
+          Add Number(s)
+          <input id="input-add-number" type="text" placeholder="905551234567, 905559876543" />
+        </label>
+        <button id="btn-add-number" class="btn secondary">Add to List</button>
       </div>
       <div class="numbers-summary">
         <span>Imported numbers:</span>

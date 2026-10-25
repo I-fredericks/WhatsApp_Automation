@@ -9,10 +9,28 @@
   // Elements
   const elLicenseText = document.getElementById('license-text');
   const elBtnConnect = document.getElementById('btn-connect');
+  const elBtnConnectPhone = document.getElementById('btn-connect-phone');
+  const elPhoneNumber = document.getElementById('phone-number');
   const elBtnDisconnect = document.getElementById('btn-disconnect');
+  const elBtnLogout = document.getElementById('btn-logout');
+  const elProxyUrl = document.getElementById('proxy-url');
+  const elBtnSetProxy = document.getElementById('btn-set-proxy');
   const elQrContainer = document.getElementById('qr-container');
   const elQrImage = document.getElementById('qr-image');
+  const elPairingCodeContainer = document.getElementById('pairing-code-container');
+  const elPairingCode = document.getElementById('pairing-code');
   const elConnectionStatus = document.getElementById('connection-status');
+
+  const elAccountsSelect = document.getElementById('accounts-select');
+  const elBtnSwitchAccount = document.getElementById('btn-switch-account');
+  const elBtnRemoveAccount = document.getElementById('btn-remove-account');
+  const elBtnAddAccount = document.getElementById('btn-add-account');
+  const elNewAccountLabel = document.getElementById('new-account-label');
+  const elAccountsTbody = document.getElementById('accounts-tbody');
+  const elRotationEnabled = document.getElementById('rotation-enabled');
+  const elRotationMax = document.getElementById('rotation-max');
+  const elRotationPause = document.getElementById('rotation-pause');
+  const elBtnSaveRotation = document.getElementById('btn-save-rotation');
 
   const elFileInput = document.createElement('input');
   elFileInput.type = 'file';
@@ -20,6 +38,8 @@
 
   const elBtnImport = document.getElementById('btn-import');
   const elBtnClearNumbers = document.getElementById('btn-clear-numbers');
+  const elInputAddNumber = document.getElementById('input-add-number');
+  const elBtnAddNumber = document.getElementById('btn-add-number');
   const elNumbersCount = document.getElementById('numbers-count');
   const elNumbersPreview = document.getElementById('numbers-preview');
 
@@ -65,9 +85,12 @@
     isConnected = ready;
     elConnectionStatus.textContent = ready ? 'Status: Connected' : 'Status: Disconnected';
     elBtnConnect.disabled = ready;
+    elBtnConnectPhone.disabled = ready;
     elBtnDisconnect.disabled = !ready;
+    elBtnLogout.disabled = !ready;
     if (ready) {
       elQrContainer.classList.add('hidden');
+      elPairingCodeContainer.classList.add('hidden');
     }
     updateStartButton();
   }
@@ -115,7 +138,15 @@
   socket.on('whatsapp:qr', (qrDataUrl) => {
     elQrImage.src = qrDataUrl;
     elQrContainer.classList.remove('hidden');
+    elPairingCodeContainer.classList.add('hidden');
     setStatus('QR code ready. Scan to connect.');
+  });
+
+  socket.on('whatsapp:pairingCode', (code) => {
+    elPairingCode.textContent = code;
+    elPairingCodeContainer.classList.remove('hidden');
+    elQrContainer.classList.add('hidden');
+    setStatus('Pairing code received. Enter it in WhatsApp.');
   });
 
   socket.on('whatsapp:ready', (ready) => {
@@ -128,6 +159,18 @@
   socket.on('numbers:updated', (numbers) => {
     elNumbersCount.textContent = numbers.length;
     elNumbersPreview.value = numbers.join('\n');
+  });
+
+  socket.on('whatsapp:proxy', (proxy) => {
+    elProxyUrl.value = proxy || '';
+  });
+
+  socket.on('accounts:updated', (state) => renderAccounts(state));
+
+  socket.on('campaign:rotation', (options) => {
+    elRotationEnabled.checked = Boolean(options.enabled);
+    elRotationMax.value = options.maxPerAccount;
+    elRotationPause.value = options.switchPauseSeconds;
   });
 
   socket.on('campaign:started', (stats) => {
@@ -149,13 +192,179 @@
   // UI handlers
   elBtnConnect.addEventListener('click', () => {
     socket.emit('whatsapp:connect');
-    setStatus('Connecting WhatsApp...');
+    setStatus('Connecting WhatsApp via QR...');
+  });
+
+  elBtnConnectPhone.addEventListener('click', () => {
+    const phone = elPhoneNumber.value.trim();
+    if (!phone) {
+      setError('Please enter your phone number.');
+      return;
+    }
+    socket.emit('whatsapp:connect-phone', phone, (result) => {
+      if (!result.success) {
+        setError(result.error);
+      } else {
+        setStatus('Requesting pairing code...');
+      }
+    });
   });
 
   elBtnDisconnect.addEventListener('click', () => {
     socket.emit('whatsapp:disconnect');
     updateConnectionUI(false);
     setStatus('Disconnected.');
+  });
+
+  elBtnLogout.addEventListener('click', () => {
+    socket.emit('whatsapp:logout', null, (result) => {
+      if (result.success) {
+        updateConnectionUI(false);
+        setStatus('Logged out and session cleared.');
+      }
+    });
+  });
+
+  elBtnSetProxy.addEventListener('click', () => {
+    socket.emit('whatsapp:set-proxy', elProxyUrl.value.trim(), (result) => {
+      if (result.success) {
+        const account = accountsState.accounts.find((a) => a.id === accountsState.activeId);
+        setStatus(result.proxy
+          ? `Proxy saved for "${account ? account.label : 'active account'}". Applies on its next connection.`
+          : 'Proxy cleared for the active account.');
+      } else {
+        setError(result.error);
+      }
+    });
+  });
+
+  // Accounts management
+  let accountsState = { accounts: [], activeId: null };
+
+  function renderAccounts(state) {
+    accountsState = state;
+
+    elAccountsSelect.innerHTML = '';
+    for (const account of state.accounts) {
+      const option = document.createElement('option');
+      option.value = account.id;
+      option.textContent = account.label + (account.id === state.activeId ? ' (active)' : '');
+      elAccountsSelect.appendChild(option);
+    }
+    if (state.activeId) {
+      elAccountsSelect.value = state.activeId;
+    }
+
+    // The proxy field always shows the active account's own proxy.
+    const active = state.accounts.find((a) => a.id === state.activeId);
+    elProxyUrl.value = (active && active.proxy) || '';
+
+    elAccountsTbody.innerHTML = '';
+    for (const account of state.accounts) {
+      const row = document.createElement('tr');
+      if (account.id === state.activeId) {
+        row.classList.add('active-account');
+      }
+      const name = document.createElement('td');
+      name.textContent = account.id === state.activeId ? `${account.label} ★` : account.label;
+      const linked = document.createElement('td');
+      linked.textContent = account.hasSession ? 'Yes' : 'No';
+      const proxy = document.createElement('td');
+      proxy.textContent = proxyDisplay(account.proxy);
+      const sent = document.createElement('td');
+      sent.textContent = account.stats.sent;
+      const failed = document.createElement('td');
+      failed.textContent = account.stats.failed;
+      row.append(name, linked, proxy, sent, failed);
+      elAccountsTbody.appendChild(row);
+    }
+
+    const selectedId = elAccountsSelect.value;
+    elBtnSwitchAccount.disabled = !selectedId || selectedId === state.activeId;
+  }
+
+  function proxyDisplay(proxyUrl) {
+    if (!proxyUrl) {
+      return '—';
+    }
+    try {
+      const url = new URL(proxyUrl);
+      return `${url.hostname}:${url.port}`;
+    } catch (err) {
+      return 'set';
+    }
+  }
+
+  elBtnAddAccount.addEventListener('click', () => {
+    const label = elNewAccountLabel.value.trim();
+    if (!label) {
+      setError('Enter a name for the new account.');
+      return;
+    }
+    socket.emit('accounts:add', { label }, (result) => {
+      if (result.success) {
+        elNewAccountLabel.value = '';
+        setStatus(`Account "${result.account.label}" added. Select it and connect to link the number.`);
+      }
+    });
+  });
+
+  elBtnRemoveAccount.addEventListener('click', () => {
+    const id = elAccountsSelect.value;
+    if (!id) {
+      setError('Select an account to remove.');
+      return;
+    }
+    const account = accountsState.accounts.find((a) => a.id === id);
+    if (!window.confirm(`Remove account "${account ? account.label : id}" and delete its linked session?`)) {
+      return;
+    }
+    socket.emit('accounts:remove', { id }, (result) => {
+      if (result.success) {
+        setStatus('Account removed.');
+      } else {
+        setError(result.error);
+      }
+    });
+  });
+
+  elBtnSwitchAccount.addEventListener('click', () => {
+    const id = elAccountsSelect.value;
+    if (!id) {
+      return;
+    }
+    socket.emit('accounts:switch', { id }, (result) => {
+      if (!result.success) {
+        setError(result.error);
+      } else if (result.autoRestored) {
+        setStatus('Switched. Restoring saved session...');
+      }
+    });
+  });
+
+  elBtnSaveRotation.addEventListener('click', () => {
+    const max = parseInt(elRotationMax.value, 10);
+    const pause = parseInt(elRotationPause.value, 10);
+    if (isNaN(max) || max < 1) {
+      setError('Messages per account must be at least 1.');
+      return;
+    }
+    if (isNaN(pause) || pause < 1) {
+      setError('Switch pause must be at least 1 second.');
+      return;
+    }
+    const enabled = elRotationEnabled.checked;
+    socket.emit(
+      'campaign:set-rotation',
+      { enabled, maxPerAccount: max, switchPauseSeconds: pause },
+      (result) => {
+        if (result.success) {
+          setStatus(enabled
+            ? `Rotation on: switch account after ${max} messages, pause ${pause}s.`
+            : `Rotation saved (off): ${max} messages/pause ${pause}s.`);
+        }
+      },
+    );
   });
 
   elBtnImport.addEventListener('click', () => {
@@ -177,6 +386,20 @@
     };
     reader.readAsText(file);
     elFileInput.value = '';
+  });
+
+  elBtnAddNumber.addEventListener('click', () => {
+    const raw = elInputAddNumber.value.trim();
+    if (!raw) {
+      setError('Please enter at least one phone number.');
+      return;
+    }
+    socket.emit('numbers:add', raw, (result) => {
+      if (result.success) {
+        setStatus(`${result.added} number(s) added. Total: ${result.count}.`);
+        elInputAddNumber.value = '';
+      }
+    });
   });
 
   elBtnClearNumbers.addEventListener('click', () => {
