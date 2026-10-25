@@ -211,6 +211,15 @@
 
   elAutoreplyProvider.addEventListener('change', updateModelSuggestions);
 
+  // If the provider catalog never arrives, the dashboard server is running
+  // outdated code (started before this update) — say so instead of leaving
+  // a silent empty list.
+  setTimeout(() => {
+    if (elAutoreplyProvider.options.length === 0) {
+      setError('Provider list is empty: restart the tool (npm start) to load the new server code.');
+    }
+  }, 3000);
+
   socket.on('campaign:started', (stats) => {
     updateStats(stats);
     setRunning(true);

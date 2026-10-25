@@ -224,6 +224,9 @@ function setupSocketHandlers() {
         return cb({ success: false, error: 'No active account. Add one first.' });
       }
       whatsappClient.setProxy(active.proxy || null);
+      if (accountManager.hasSession(active.id)) {
+        broadcast('status', `"${active.label}" already has a saved session — restoring it (no QR needed).`);
+      }
       const started = await whatsappClient.initialize(active.id);
       cb({ success: started, error: started ? undefined : 'Connection attempt not started.' });
     });
@@ -239,6 +242,9 @@ function setupSocketHandlers() {
       }
       const phoneNumber = typeof payload === 'string' ? payload : payload?.phoneNumber;
       whatsappClient.setProxy(active.proxy || null);
+      if (accountManager.hasSession(active.id)) {
+        broadcast('status', `"${active.label}" already has a saved session — restoring it instead of pairing. The entered number is not used.`);
+      }
       const started = await whatsappClient.initializeWithPhoneNumber(active.id, phoneNumber);
       cb({
         success: started,

@@ -1,14 +1,15 @@
 {
   "accounts": [
     {
-      "id": "whatsapp-bulk-campaign-tool",
+      "id": "acct_ddb71a2a",
       "label": "Account 1",
-      "createdAt": "2026-10-25T00:29:49.738Z",
+      "createdAt": "2026-10-25T02:01:48.185Z",
+      "proxy": "http://campaign:wh-ndmTgI22En6o@5.206.227.163:8888",
       "stats": {
         "sent": 1,
         "failed": 0
       }
     }
   ],
-  "activeId": "whatsapp-bulk-campaign-tool"
+  "activeId": "acct_ddb71a2a"
 }

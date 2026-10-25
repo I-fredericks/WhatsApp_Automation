@@ -346,8 +346,14 @@ class WhatsAppClient extends EventEmitter {
     if (!this._isReady) {
       throw new Error('WhatsApp client is not ready.');
     }
-    const chatId = formatWhatsAppId(phoneNumber);
-    return this.client.sendMessage(chatId, text);
+    // Resolve the real chat JID first. Newer WhatsApp Web builds migrate
+    // chats to LID ids and throw "No LID for user" for raw @c.us ids; the
+    // onWhatsApp lookup returns the correct JID and refreshes that mapping.
+    const numberId = await this.client.getNumberId(phoneNumber);
+    if (!numberId) {
+      throw new Error(`Number ${phoneNumber} is not registered on WhatsApp.`);
+    }
+    return this.client.sendMessage(numberId._serialized, text);
   }
 
   /**
