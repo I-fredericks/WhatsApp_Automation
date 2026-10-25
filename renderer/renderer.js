@@ -51,8 +51,10 @@
   const elBtnSaveDelay = document.getElementById('btn-save-delay');
 
   const elAutoreplyEnabled = document.getElementById('autoreply-enabled');
-  const elOpenAIKey = document.getElementById('openai-key');
-  const elOpenAIModel = document.getElementById('openai-model');
+  const elAutoreplyProvider = document.getElementById('autoreply-provider');
+  const elAutoreplyModel = document.getElementById('autoreply-model');
+  const elModelSuggestions = document.getElementById('model-suggestions');
+  const elAiApiKey = document.getElementById('ai-api-key');
   const elBtnSaveAutoreply = document.getElementById('btn-save-autoreply');
 
   const elBtnStart = document.getElementById('btn-start');
@@ -172,6 +174,42 @@
     elRotationMax.value = options.maxPerAccount;
     elRotationPause.value = options.switchPauseSeconds;
   });
+
+  // AI auto-reply providers and current config
+  let aiProviders = {};
+
+  function updateModelSuggestions() {
+    const info = aiProviders[elAutoreplyProvider.value];
+    elModelSuggestions.innerHTML = '';
+    for (const model of (info ? info.models : [])) {
+      const option = document.createElement('option');
+      option.value = model;
+      elModelSuggestions.appendChild(option);
+    }
+  }
+
+  socket.on('autoreply:providers', (providers) => {
+    aiProviders = providers || {};
+    elAutoreplyProvider.innerHTML = '';
+    for (const [id, info] of Object.entries(aiProviders)) {
+      const option = document.createElement('option');
+      option.value = id;
+      option.textContent = info.label;
+      elAutoreplyProvider.appendChild(option);
+    }
+    updateModelSuggestions();
+  });
+
+  socket.on('autoreply:config', (config) => {
+    elAutoreplyEnabled.checked = Boolean(config.enabled);
+    if (config.provider && aiProviders[config.provider]) {
+      elAutoreplyProvider.value = config.provider;
+    }
+    updateModelSuggestions();
+    elAutoreplyModel.value = config.model || '';
+  });
+
+  elAutoreplyProvider.addEventListener('change', updateModelSuggestions);
 
   socket.on('campaign:started', (stats) => {
     updateStats(stats);
@@ -434,16 +472,23 @@
 
   elBtnSaveAutoreply.addEventListener('click', () => {
     const enabled = elAutoreplyEnabled.checked;
-    const apiKey = elOpenAIKey.value.trim();
-    const model = elOpenAIModel.value.trim() || 'gpt-4o-mini';
+    const provider = elAutoreplyProvider.value;
+    const model = elAutoreplyModel.value.trim();
+    const apiKey = elAiApiKey.value.trim();
 
-    if (enabled && !apiKey) {
-      setError('Please enter an OpenAI API key to enable auto-reply.');
+    if (!model) {
+      setError('Please enter or pick a model.');
       return;
     }
 
-    socket.emit('autoreply:configure', { enabled, apiKey, model }, () => {
-      setStatus(enabled ? 'AI auto-reply enabled.' : 'AI auto-reply disabled.');
+    socket.emit('autoreply:configure', { enabled, provider, model, apiKey }, (result) => {
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      elAiApiKey.value = '';
+      const cfg = result.config;
+      setStatus(`AI auto-reply ${cfg.enabled ? 'enabled' : 'disabled'}: ${cfg.provider} / ${cfg.model}${cfg.keyHint ? ` (key ${cfg.keyHint})` : ''}.`);
     });
   });
 

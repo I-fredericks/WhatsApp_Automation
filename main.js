@@ -17,10 +17,16 @@ const AccountManager = require('./src/account-manager');
 const { parseNumberList } = require('./src/utils');
 
 const PORT = process.env.PORT || 3000;
+// Bind to localhost by default so the dashboard is not reachable from the
+// network. Set HOST=0.0.0.0 explicitly to expose it (not recommended).
+const HOST = process.env.HOST || '127.0.0.1';
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  // Cap single socket payloads; none of our events need large frames.
+  maxHttpBufferSize: 1e6,
+});
 
 const whatsappClient = new WhatsAppClient();
 const campaignService = new CampaignService(whatsappClient);
@@ -39,8 +45,29 @@ let currentCampaignMessage = '';
 let currentDelayOptions = { minDelay: 120, maxDelay: 240 };
 let currentRotationOptions = { enabled: false, maxPerAccount: 50, switchPauseSeconds: 60 };
 
+const MAX_CAMPAIGN_MESSAGE_CHARS = 4096;
+const MAX_NUMBERS = 10000;
+const clampInt = (value, min, max, fallback) => {
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, n));
+};
+
+app.disable('x-powered-by');
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+  );
+  next();
+});
 app.use(express.static(path.join(__dirname, 'renderer')));
-app.use(express.json());
+app.use(express.json({ limit: '256kb' }));
 
 app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, 'renderer', 'index.html'));
@@ -178,6 +205,8 @@ function setupSocketHandlers() {
     socket.emit('whatsapp:proxy', connectedAccount ? connectedAccount.proxy || null : null);
     socket.emit('accounts:updated', accountManager.list());
     socket.emit('campaign:rotation', currentRotationOptions);
+    socket.emit('autoreply:providers', AutoReplyService.getProviders());
+    socket.emit('autoreply:config', autoReplyService.getConfig());
 
     socket.on('app:activate-license', (key, callback) => {
       const ok = licenseService.activate(key);
@@ -224,7 +253,7 @@ function setupSocketHandlers() {
       }
       // Proxies are per account ("1 number = 1 proxy"); the wrapper applies
       // the active account's proxy on its next connection.
-      const result = accountManager.setProxy(active.id, proxyString);
+      const result = accountManager.setProxy(active.id, String(proxyString || '').slice(0, 2048));
       if (result.success) {
         broadcast('accounts:updated', accountManager.list());
         whatsappClient.setProxy(result.proxy);
@@ -255,7 +284,8 @@ function setupSocketHandlers() {
     });
 
     socket.on('accounts:add', (payload, callback) => {
-      const label = typeof payload === 'string' ? payload : payload?.label;
+      const rawLabel = typeof payload === 'string' ? payload : payload?.label;
+      const label = String(rawLabel || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 60);
       const account = accountManager.add(label || `Account ${accountManager.list().accounts.length + 1}`);
       callback({ success: true, account });
     });
@@ -314,13 +344,20 @@ function setupSocketHandlers() {
     });
 
     socket.on('numbers:import', (rawText, callback) => {
-      currentNumbers = parseNumberList(rawText);
+      const parsed = parseNumberList(rawText).slice(0, MAX_NUMBERS);
+      if (parsed.length >= MAX_NUMBERS) {
+        return callback({ success: false, error: `Number list is limited to ${MAX_NUMBERS} numbers.` });
+      }
+      currentNumbers = parsed;
       callback({ success: true, count: currentNumbers.length, numbers: currentNumbers });
       broadcast('numbers:updated', currentNumbers);
     });
 
     socket.on('numbers:add', (rawNumbers, callback) => {
       const newNumbers = parseNumberList(rawNumbers);
+      if (currentNumbers.length + newNumbers.length > MAX_NUMBERS) {
+        return callback({ success: false, error: `Number list is limited to ${MAX_NUMBERS} numbers.` });
+      }
       currentNumbers = [...new Set([...currentNumbers, ...newNumbers])];
       callback({ success: true, count: currentNumbers.length, added: newNumbers.length, numbers: currentNumbers });
       broadcast('numbers:updated', currentNumbers);
@@ -333,23 +370,26 @@ function setupSocketHandlers() {
     });
 
     socket.on('campaign:set-message', (message, callback) => {
-      currentCampaignMessage = message || '';
+      currentCampaignMessage = String(message || '').slice(0, MAX_CAMPAIGN_MESSAGE_CHARS);
       callback({ success: true });
     });
 
     socket.on('campaign:set-delay', (options, callback) => {
       currentDelayOptions = {
-        minDelay: Number(options.minDelay) || 120,
-        maxDelay: Number(options.maxDelay) || 240,
+        minDelay: clampInt(options && options.minDelay, 1, 3600, 120),
+        maxDelay: clampInt(options && options.maxDelay, 1, 3600, 240),
       };
+      if (currentDelayOptions.minDelay > currentDelayOptions.maxDelay) {
+        currentDelayOptions.maxDelay = currentDelayOptions.minDelay;
+      }
       callback({ success: true, options: currentDelayOptions });
     });
 
     socket.on('campaign:set-rotation', (options, callback) => {
       currentRotationOptions = {
         enabled: Boolean(options && options.enabled),
-        maxPerAccount: Math.max(1, Number(options && options.maxPerAccount) || 50),
-        switchPauseSeconds: Math.max(0, Number(options && options.switchPauseSeconds) || 0),
+        maxPerAccount: clampInt(options && options.maxPerAccount, 1, 100000, 50),
+        switchPauseSeconds: clampInt(options && options.switchPauseSeconds, 0, 3600, 60),
       };
       callback({ success: true, options: currentRotationOptions });
     });
@@ -416,9 +456,15 @@ function setupSocketHandlers() {
     });
 
     socket.on('autoreply:configure', (options, callback) => {
-      autoReplyService.configure(options);
-      autoReplyService.start();
-      callback({ success: true, config: autoReplyService.getConfig() });
+      const result = autoReplyService.configure(options || {});
+      if (result.success) {
+        if (result.config.enabled) {
+          autoReplyService.start();
+        } else {
+          autoReplyService.stop();
+        }
+      }
+      callback(result);
     });
   });
 }
@@ -426,9 +472,13 @@ function setupSocketHandlers() {
 setupEventForwarding();
 setupSocketHandlers();
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   // eslint-disable-next-line no-console
-  console.log(`WhatsApp Bulk Campaign Tool running at http://localhost:${PORT}`);
+  console.log(`WhatsApp Bulk Campaign Tool running at http://${HOST}:${PORT}`);
+  if (HOST !== '127.0.0.1') {
+    // eslint-disable-next-line no-console
+    console.warn('WARNING: dashboard is exposed beyond localhost. Anyone who can reach this host can control the tool.');
+  }
 });
 
 server.on('error', (err) => {

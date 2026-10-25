@@ -146,16 +146,22 @@
       <h2>AI-Powered Auto-Reply</h2>
       <label class="checkbox-label">
         <input id="autoreply-enabled" type="checkbox" />
-        Enable ChatGPT Auto-Reply
+        Enable AI Auto-Reply
       </label>
       <label class="input-label">
-        OpenAI API Key
-        <input id="openai-key" type="password" placeholder="sk-..." />
+        Provider
+        <select id="autoreply-provider" class="input-select"></select>
       </label>
       <label class="input-label">
-        AI Model
-        <input id="openai-model" type="text" value="gpt-4o-mini" />
+        Model (pick a suggestion or type any model id your provider supports)
+        <input id="autoreply-model" type="text" list="model-suggestions" placeholder="e.g. gpt-4o-mini" autocomplete="off" />
+        <datalist id="model-suggestions"></datalist>
       </label>
+      <label class="input-label">
+        API Key
+        <input id="ai-api-key" type="password" placeholder="Paste your API key..." autocomplete="off" />
+      </label>
+      <p class="hint">Your key is kept in server memory only — never saved to disk — and is never shown in the UI again (only a hint like "sk-…ab12"). Re-enter it after restarting the tool.</p>
       <button id="btn-save-autoreply" class="btn secondary">Save Auto-Reply Settings</button>
     </section>
 

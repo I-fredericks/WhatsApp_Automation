@@ -333,6 +333,14 @@ body {
   font-size: 0.9rem;
 }
 
+.input-select {
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  background: white;
+}
+
 .checkbox-label {
   display: flex;
   align-items: center;

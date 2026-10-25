@@ -23,7 +23,7 @@ WhatsApp Bulk Campaign Tool v1 — a Node.js web dashboard for bulk WhatsApp mes
 - `src/whatsapp-client.js` — WhatsApp client wrapper (per-account sessions)
 - `src/account-manager.js` — multi-account registry, session dirs, per-account stats
 - `src/campaign-service.js` — bulk messaging logic with randomized delays
-- `src/autoreply-service.js` — OpenAI auto-reply logic
+- `src/autoreply-service.js` — AI auto-reply via OpenAI-compatible APIs (OpenAI, DeepSeek, Kimi, Z.ai GLM, OpenRouter, Anthropic, Groq, Gemini, xAI, Mistral); key held in memory only, never persisted or broadcast (config exposes `keyHint` masked)
 - `src/license-service.js` — simple VIP license state
 - `src/utils.js` — phone number parsing and delay helpers
 - `renderer/` — static frontend (HTML/CSS/JS)
@@ -43,6 +43,13 @@ WhatsApp Bulk Campaign Tool v1 — a Node.js web dashboard for bulk WhatsApp mes
 - 2-space indentation
 - Minimal changes; keep code simple and modular
 - Use Socket.IO events prefixed by domain (`whatsapp:`, `campaign:`, `numbers:`, etc.)
+
+## Security Notes
+
+- The dashboard binds to `127.0.0.1` by default (`HOST` env overrides; a warning prints when exposed). Socket.IO caps payloads at 1 MB.
+- HTTP responses carry nosniff / DENY-framing / no-referrer / CSP headers; `express.json` is capped at 256 KB; `x-powered-by` is off.
+- Socket input is clamped: campaign message 4 096 chars, number list 10 000 entries, delays ≤ 3600 s, account labels 60 chars, proxy strings 2 048 chars; model ids must match a strict pattern.
+- AI API keys live in server memory only — never written to disk, never broadcast; clients see a masked `keyHint`, and error messages are scrubbed before emission.
 
 ## Environment Variables
 
