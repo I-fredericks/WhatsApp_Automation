@@ -111,7 +111,7 @@ class WhatsAppClient extends EventEmitter {
    * @param {string|null} proxyArg
    * @returns {Client}
    */
-  _createClient(accountId, pairWithPhoneNumber = null, proxyArg = null) {
+  _createClient(accountId, pairWithPhoneNumber = null, proxyArg = null, authTimeoutMs = null) {
     const webVersion = process.env.WWEBJS_WEB_VERSION || '2.3000.1051617046-alpha';
 
     const puppeteerArgs = ['--no-sandbox', '--disable-setuid-sandbox'];
@@ -125,16 +125,18 @@ class WhatsAppClient extends EventEmitter {
         dataPath: DATA_PATH,
       }),
       // Page load is slower through proxies; give the WhatsApp auth store
-      // more time to boot than the 30s default.
-      authTimeoutMs: Number(process.env.WWEBJS_AUTH_TIMEOUT) || 120000,
+      // more time to boot than the library's 30s default.
+      authTimeoutMs: authTimeoutMs || Number(process.env.WWEBJS_AUTH_TIMEOUT) || 120000,
       puppeteer: {
         args: puppeteerArgs,
         headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
       },
       webVersionCache: {
-        type: 'remote',
-        remotePath: `https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/${webVersion}.html`,
+        // Local cache seeded with the pinned version (and auto-persisted by
+        // the library after each successful load) so a GitHub outage can
+        // never block or crash connections.
+        type: 'local',
       },
     };
 
@@ -304,7 +306,14 @@ class WhatsAppClient extends EventEmitter {
       if (proxyArg) {
         this.emit('status', `Connecting through proxy ${proxyArg}...`);
       }
-      this.client = this._createClient(accountId, cleanNumber, proxyArg);
+      // Pairing needs the user to type the code on their phone — allow at
+      // least 5 minutes before the auth store times out.
+      this.client = this._createClient(
+        accountId,
+        cleanNumber,
+        proxyArg,
+        Math.max(Number(process.env.WWEBJS_AUTH_TIMEOUT) || 0, 300000),
+      );
 
       this.client.on('code', (code) => {
         this.emit('pairingCode', code);

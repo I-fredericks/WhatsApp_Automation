@@ -1,194 +1,441 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WhatsApp Bulk Campaign Tool - VIP Version</title>
-  <link rel="stylesheet" href="styles.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhatsApp Bulk Campaign Tool</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f7f6; --surface:#ffffff; --surface-2:#f0f3f2; --border:#e3e8e6; --text:#0f1a16; --muted:#667570;
+  --brand:#16a34a; --brand-600:#15803d; --brand-soft:#e7f7ed; --danger:#dc2626; --danger-soft:#fdecec;
+  --warn:#d97706; --warn-soft:#fff4e0; --info:#2563eb; --info-soft:#e8effe;
+  --shadow:0 1px 2px rgba(15,26,22,.05),0 4px 16px rgba(15,26,22,.05);
+  --radius:14px; --sidebar:248px;
+}
+[data-theme="dark"]{
+  --bg:#0b1210; --surface:#111b17; --surface-2:#16221d; --border:#223029; --text:#e8f1ed; --muted:#8aa097;
+  --brand:#22c55e; --brand-600:#16a34a; --brand-soft:#0f2a1b; --danger:#f87171; --danger-soft:#2d1717;
+  --warn:#fbbf24; --warn-soft:#2d2411; --info:#60a5fa; --info-soft:#13213d;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* Layout */
+.app{display:grid;grid-template-columns:var(--sidebar) 1fr;min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 14px}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 10px 22px}
+.logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#22c55e,#0d9488);display:grid;place-items:center;color:#fff;box-shadow:0 4px 12px rgba(34,197,94,.35)}
+.brand b{font-size:16px;letter-spacing:-.2px;display:block;line-height:1.1}
+.brand small{color:var(--muted);font-size:11px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav-label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:14px 12px 6px}
+.nav a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-weight:500;cursor:pointer;transition:.15s}
+.nav a:hover{background:var(--surface-2);color:var(--text)}
+.nav a.active{background:var(--brand-soft);color:var(--brand-600)}
+[data-theme="dark"] .nav a.active{color:var(--brand)}
+.nav .badge{margin-left:auto;font-size:11px;background:var(--surface-2);padding:1px 8px;border-radius:99px;color:var(--muted)}
+.side-foot{margin-top:auto;border:1px solid var(--border);border-radius:12px;padding:14px;background:linear-gradient(160deg,var(--brand-soft),transparent)}
+.side-foot .row{display:flex;align-items:center;gap:8px;font-weight:600}
+.side-foot p{color:var(--muted);font-size:12px;margin-top:4px}
+
+.main{min-width:0}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:14px 28px;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.topbar h1{font-size:18px;letter-spacing:-.3px}
+.topbar .sub{color:var(--muted);font-size:12px}
+.spacer{flex:1}
+.menu-btn{display:none}
+.content{padding:28px;max-width:1280px;margin:0 auto}
+.view{display:none;animation:fade .25s ease}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* Components */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;gap:10px;padding:18px 20px 0}
+.card-h h3{font-size:15px;letter-spacing:-.2px}
+.card-h p{color:var(--muted);font-size:12.5px}
+.card-b{padding:18px 20px 20px}
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g-split{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}
+.mt{margin-top:18px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-weight:600;font-size:13px;cursor:pointer;transition:.15s;white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 2px 8px rgba(22,163,74,.3)}
+.btn.primary:hover{background:var(--brand-600)}
+.btn.danger{background:var(--danger-soft);border-color:transparent;color:var(--danger)}
+.btn.danger:hover{filter:brightness(.97)}
+.btn.sm{height:32px;padding:0 12px;font-size:12.5px}
+.btn.block{width:100%}
+.btn.ghost{border-color:transparent;background:transparent}
+.icon-btn{width:38px;padding:0}
+
+label.f{display:block;font-size:12.5px;font-weight:600;margin-bottom:6px}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.input,.select,.textarea{width:100%;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);outline:none;transition:.15s}
+.textarea{height:auto;padding:12px;resize:vertical;min-height:120px;line-height:1.55}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 18%,transparent)}
+.input.mono{font-family:'JetBrains Mono',monospace;font-size:13px}
+.field{margin-bottom:16px}
+.row{display:flex;gap:10px;align-items:center}
+.row>*{min-width:0}
+.input-group{display:flex;gap:8px}
+.suffix{position:relative}
+.suffix span{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px;pointer-events:none}
+
+.pill{display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:99px;font-size:12px;font-weight:600;background:var(--surface-2);color:var(--muted)}
+.pill i{width:8px;height:8px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--brand-soft);color:var(--brand-600)} [data-theme="dark"] .pill.ok{color:var(--brand)}
+.pill.err{background:var(--danger-soft);color:var(--danger)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.live i{animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 currentColor}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+
+/* Switch */
+.switch{display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none}
+.switch input{display:none}
+.track{width:42px;height:24px;border-radius:99px;background:var(--border);position:relative;transition:.2s;flex:none}
+.track::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:.2s}
+.switch input:checked+.track{background:var(--brand)}
+.switch input:checked+.track::after{transform:translateX(18px)}
+.switch b{display:block;font-size:13.5px}
+.switch small{color:var(--muted);font-size:12px}
+
+/* Stat cards */
+.stat{padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.stat .top{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-weight:500;font-size:12.5px}
+.stat .ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center}
+.stat .val{font-size:28px;font-weight:700;letter-spacing:-.8px;line-height:1}
+.ico.green{background:var(--brand-soft);color:var(--brand-600)} .ico.red{background:var(--danger-soft);color:var(--danger)}
+.ico.blue{background:var(--info-soft);color:var(--info)} .ico.amber{background:var(--warn-soft);color:var(--warn)}
+
+/* Progress */
+.bar{height:10px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.bar>div{height:100%;width:0;background:linear-gradient(90deg,#22c55e,#14b8a6);border-radius:99px;transition:width .4s ease}
+.ring{--p:0;width:132px;height:132px;border-radius:50%;background:conic-gradient(var(--brand) calc(var(--p)*1%),var(--surface-2) 0);display:grid;place-items:center;flex:none;transition:.4s}
+.ring div{width:100px;height:100px;border-radius:50%;background:var(--surface);display:grid;place-items:center;text-align:center}
+.ring b{font-size:24px;letter-spacing:-.5px;display:block;line-height:1}
+.ring small{color:var(--muted);font-size:11px}
+
+/* Table */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:10px 14px;border-bottom:1px solid var(--border)}
+td{padding:14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+.acct{display:flex;align-items:center;gap:12px}
+.avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;font-size:13px;background:linear-gradient(135deg,#22c55e,#0d9488)}
+.acct b{display:block;line-height:1.2} .acct small{color:var(--muted);font-size:12px}
+.empty{text-align:center;padding:36px 16px;color:var(--muted)}
+.empty svg{width:32px;height:32px;margin-bottom:8px;opacity:.6}
+
+/* Dropzone */
+.drop{border:2px dashed var(--border);border-radius:12px;padding:26px;text-align:center;color:var(--muted);transition:.15s;cursor:pointer}
+.drop:hover,.drop.over{border-color:var(--brand);background:var(--brand-soft);color:var(--brand-600)}
+.drop svg{width:28px;height:28px;margin-bottom:6px}
+.drop b{display:block;color:var(--text)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;max-height:220px;overflow:auto;padding:2px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border-radius:99px;background:var(--surface-2);font-family:'JetBrains Mono',monospace;font-size:12px}
+.chip button{border:0;background:transparent;color:var(--muted);cursor:pointer;width:18px;height:18px;border-radius:50%;line-height:1}
+.chip button:hover{background:var(--danger-soft);color:var(--danger)}
+
+/* Phone preview */
+.phone{background:#0b141a;border-radius:22px;padding:10px;border:6px solid #1c2b33;max-width:320px;margin:0 auto}
+.phone-h{display:flex;align-items:center;gap:10px;padding:10px 8px;color:#e9edef;background:#202c33;border-radius:12px 12px 0 0}
+.phone-h .avatar{width:30px;height:30px;font-size:11px}
+.phone-h small{color:#8696a0;display:block;font-size:11px;line-height:1}
+.chat{min-height:220px;background:#0b141a;background-image:radial-gradient(#ffffff08 1px,transparent 1px);background-size:14px 14px;padding:14px 10px;border-radius:0 0 12px 12px}
+.bubble{background:#005c4b;color:#e9edef;padding:8px 10px 6px;border-radius:10px 10px 2px 10px;max-width:92%;margin-left:auto;font-size:13px;white-space:pre-wrap;word-break:break-word}
+.bubble time{display:block;text-align:right;font-size:10px;color:#8fb5ad;margin-top:2px}
+
+/* Log */
+.log{background:#0a110e;color:#b6e8c8;font-family:'JetBrains Mono',monospace;font-size:12px;border-radius:12px;padding:14px;height:260px;overflow:auto}
+.log div{padding:2px 0;white-space:pre-wrap}
+.log .t{color:#4d6b5b} .log .e{color:#fca5a5} .log .w{color:#fde68a}
+
+/* Modal */
+.modal{position:fixed;inset:0;background:rgba(5,12,9,.55);backdrop-filter:blur(4px);display:none;place-items:center;z-index:60;padding:20px}
+.modal.open{display:grid}
+.dialog{width:100%;max-width:420px;background:var(--surface);border-radius:18px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:fade .2s}
+.dialog h3{font-size:18px;margin-bottom:4px}
+.qr{width:220px;height:220px;margin:18px auto;border-radius:14px;border:1px solid var(--border);display:grid;place-items:center;background:
+  repeating-linear-gradient(0deg,var(--surface-2) 0 10px,transparent 10px 20px),repeating-linear-gradient(90deg,var(--surface-2) 0 10px,transparent 10px 20px)}
+.qr img{width:100%;height:100%;object-fit:contain;border-radius:12px;padding:8px}
+.spin{width:28px;height:28px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--brand);animation:rot .8s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.code{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:600;letter-spacing:.2em;text-align:center;padding:16px;border-radius:12px;background:var(--brand-soft);color:var(--brand-600);margin:16px 0}
+
+/* Toast */
+.toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:10px;z-index:80}
+.toast{display:flex;align-items:center;gap:10px;min-width:260px;max-width:360px;padding:12px 16px;border-radius:12px;background:var(--text);color:var(--bg);box-shadow:0 10px 30px rgba(0,0,0,.25);animation:fade .2s;font-weight:500}
+.toast.ok svg{color:#4ade80}.toast.err svg{color:#f87171}
+
+.sep{height:1px;background:var(--border);margin:18px 0}
+.kbd{font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--surface-2);border:1px solid var(--border);padding:1px 6px;border-radius:6px}
+.scrim{display:none}
+
+.license-key{width:100%;margin-top:10px}
+
+@media (max-width:1100px){.g4{grid-template-columns:repeat(2,1fr)}.g-split,.g3{grid-template-columns:1fr}}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .sidebar{position:fixed;z-index:50;left:0;width:var(--sidebar);transform:translateX(-100%);transition:.25s}
+  .sidebar.open{transform:none}
+  .scrim.show{display:block;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40}
+  .menu-btn{display:inline-flex}
+  .content{padding:18px}.topbar{padding:12px 18px}
+  .g2,.g4{grid-template-columns:1fr}
+}
+</style>
 </head>
 <body>
-  <header class="app-header">
-    <div class="brand">
-      <h1>WhatsApp Bulk Campaign Tool</h1>
-      <span class="subtitle">v1.0.0</span>
+<div class="app">
+
+<!-- ===== Sidebar ===== -->
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="logo"><svg viewBox="0 0 24 24" style="stroke:#fff"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.7-5.4A8.4 8.4 0 1 1 21 11.5z"/></svg></div>
+    <div><b>WhatsApp Tool</b><small>Campaign Console · v1.0.0</small></div>
+  </div>
+  <nav class="nav" id="nav">
+    <div class="nav-label">Workspace</div>
+    <a data-view="overview" class="active"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Overview</a>
+    <a data-view="accounts"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg>Accounts<span class="badge" id="navAcc">1</span></a>
+    <a data-view="contacts"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>Contacts<span class="badge" id="navCon">0</span></a>
+    <a data-view="campaign"><svg viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>Campaign</a>
+    <div class="nav-label">Configuration</div>
+    <a data-view="automation"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg>Automation</a>
+    <a data-view="connection"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/><path d="M2 9a15 15 0 0 1 20 0"/></svg>Connection</a>
+  </nav>
+  <div class="side-foot">
+    <div class="row"><svg viewBox="0 0 24 24" style="color:var(--brand)"><path d="m12 2 3 6.5 7 .8-5.2 4.8 1.5 7-6.3-3.6-6.3 3.6 1.5-7L2 9.3l7-.8z"/></svg><span id="licType">VIP Version</span></div>
+    <p id="licText">License active. All features unlocked.</p>
+    <div id="licInputWrap" style="display:none">
+      <input class="input mono license-key" id="licKey" placeholder="Enter license key">
+      <button class="btn primary block" style="margin-top:8px" id="activateLic">Activate</button>
     </div>
-    <div class="license-badge">
-      <span class="dot active"></span>
-      <span id="license-text">VIP Version - Active</span>
-    </div>
+  </div>
+</aside>
+<div class="scrim" id="scrim"></div>
+
+<!-- ===== Main ===== -->
+<div class="main">
+  <header class="topbar">
+    <button class="btn icon-btn menu-btn" id="menuBtn" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <div><h1 id="pageTitle">Overview</h1><div class="sub" id="pageSub">Live status of your WhatsApp sending</div></div>
+    <div class="spacer"></div>
+    <span class="pill" id="serverPill"><i></i><span>Server online</span></span>
+    <span class="pill err" id="waPill"><i></i><span>WhatsApp disconnected</span></span>
+    <button class="btn icon-btn" id="themeBtn" title="Toggle theme"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
   </header>
 
-  <main class="app-container">
-    <!-- WhatsApp Connection Panel -->
-    <section class="panel connection-panel">
-      <h2>WhatsApp Connection</h2>
-      <div class="connection-controls">
-        <button id="btn-connect" class="btn primary">Connect with QR</button>
-        <button id="btn-disconnect" class="btn secondary" disabled>Disconnect</button>
-        <button id="btn-logout" class="btn danger" disabled>Logout &amp; Reset</button>
-      </div>
-      <div class="proxy-connect">
-        <p class="hint">Proxy (optional, saved per account — the account connects through its own IP, including during rotation): host:port or http://user:pass@host:port</p>
-        <label class="input-label">
-          Proxy for Active Account
-          <input id="proxy-url" type="text" placeholder="e.g. 45.12.30.22:8080 or http://user:pass@proxy.io:8000" />
-        </label>
-        <button id="btn-set-proxy" class="btn secondary">Save Proxy for Active Account</button>
-      </div>
-      <div class="phone-connect">
-        <p class="hint">Or link with your phone number:</p>
-        <label class="input-label">
-          Phone Number (international, no +)
-          <input id="phone-number" type="text" placeholder="905551234567" />
-        </label>
-        <button id="btn-connect-phone" class="btn primary">Get Pairing Code</button>
-      </div>
-      <div id="qr-container" class="qr-container hidden">
-        <p>Scan the QR code with WhatsApp on your phone:</p>
-        <img id="qr-image" alt="WhatsApp QR Code" />
-      </div>
-      <div id="pairing-code-container" class="pairing-code-container hidden">
-        <p>Enter this pairing code in WhatsApp on your phone:</p>
-        <div id="pairing-code" class="pairing-code"></div>
-      </div>
-      <div id="connection-status" class="connection-status">Status: Disconnected</div>
-    </section>
+  <main class="content">
 
-    <!-- Accounts Panel -->
-    <section class="panel accounts-panel">
-      <h2>WhatsApp Accounts</h2>
-      <div class="accounts-controls">
-        <select id="accounts-select" class="accounts-select"></select>
-        <button id="btn-switch-account" class="btn primary" disabled>Switch To</button>
-        <button id="btn-remove-account" class="btn danger">Remove</button>
-      </div>
-      <div class="accounts-add">
-        <input id="new-account-label" type="text" placeholder="New account name (e.g. Sales Line 2)" />
-        <button id="btn-add-account" class="btn secondary">Add Account</button>
-      </div>
-      <table class="accounts-table">
-        <thead>
-          <tr><th>Account</th><th>Linked</th><th>Proxy</th><th>Sent</th><th>Failed</th></tr>
-        </thead>
-        <tbody id="accounts-tbody"></tbody>
-      </table>
-      <p class="hint">The active account is used for connecting and campaigns. With rotation enabled below, linked accounts take turns: each one sends up to the limit, then the bot pauses and continues with the next linked account.</p>
-      <div class="rotation-controls">
-        <h3>Account Rotation</h3>
-        <label class="checkbox-label">
-          <input id="rotation-enabled" type="checkbox" />
-          Auto-rotate linked accounts while sending
-        </label>
-        <div class="delay-inputs">
-          <label>
-            Switch After (messages)
-            <input id="rotation-max" type="number" min="1" value="50" />
-          </label>
-          <label>
-            Switch Pause (s)
-            <input id="rotation-pause" type="number" min="1" value="60" />
-          </label>
+  <!-- ===== Overview ===== -->
+  <section class="view active" id="view-overview">
+    <div class="grid g4">
+      <div class="card stat"><div class="top">Total contacts<span class="ico blue"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/></svg></span></div><div class="val" id="sTotal">0</div></div>
+      <div class="card stat"><div class="top">Messages sent<span class="ico green"><svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg></span></div><div class="val" id="sSent">0</div></div>
+      <div class="card stat"><div class="top">Failed<span class="ico red"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span></div><div class="val" id="sFailed">0</div></div>
+      <div class="card stat"><div class="top">Remaining<span class="ico amber"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span></div><div class="val" id="sRemain">0</div></div>
+    </div>
+
+    <div class="grid g-split mt">
+      <div class="card">
+        <div class="card-h"><div><h3>Campaign execution</h3><p>Start, pause and monitor your current run</p></div><div class="spacer"></div><span class="pill" id="runPill"><i></i><span>Idle</span></span></div>
+        <div class="card-b">
+          <div class="row" style="gap:24px;flex-wrap:wrap">
+            <div class="ring" id="ring"><div><span><b id="ringPct">0%</b><small>complete</small></span></div></div>
+            <div style="flex:1;min-width:220px">
+              <div class="bar"><div id="bar"></div></div>
+              <div class="hint" id="etaText">No campaign running.</div>
+              <div class="row mt" style="margin-top:16px">
+                <button class="btn primary" id="startBtn"><svg viewBox="0 0 24 24"><path d="m6 4 14 8-14 8z"/></svg>Start bot</button>
+                <button class="btn danger" id="stopBtn" disabled><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Stop bot</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <button id="btn-save-rotation" class="btn secondary">Save Rotation Settings</button>
       </div>
-    </section>
+      <div class="card">
+        <div class="card-h"><div><h3>Pre-flight checklist</h3><p>What's needed before sending</p></div></div>
+        <div class="card-b" id="checklist" style="display:grid;gap:12px"></div>
+      </div>
+    </div>
 
-    <!-- Bulk Number Import Panel -->
-    <section class="panel">
-      <h2>Bulk Number Import</h2>
-      <p class="hint">Upload a .txt file with one phone number per line (international format, no +).</p>
-      <div class="file-controls">
-        <button id="btn-import" class="btn primary">Import .txt File</button>
-        <button id="btn-clear-numbers" class="btn secondary">Clear List</button>
-      </div>
-      <div class="add-number">
-        <label class="input-label">
-          Add Number(s)
-          <input id="input-add-number" type="text" placeholder="905551234567, 905559876543" />
-        </label>
-        <button id="btn-add-number" class="btn secondary">Add to List</button>
-      </div>
-      <div class="numbers-summary">
-        <span>Imported numbers:</span>
-        <strong id="numbers-count">0</strong>
-      </div>
-      <textarea id="numbers-preview" class="numbers-preview" readonly placeholder="Imported numbers will appear here..."></textarea>
-    </section>
+    <div class="card mt">
+      <div class="card-h"><div><h3>Activity log</h3><p>Realtime events from the dashboard server</p></div><div class="spacer"></div><button class="btn sm" id="clearLog">Clear</button></div>
+      <div class="card-b"><div class="log" id="log"></div></div>
+    </div>
+  </section>
 
-    <!-- Campaign Message Panel -->
-    <section class="panel">
-      <h2>Campaign Message</h2>
-      <textarea id="campaign-message" class="campaign-message" placeholder="Type your promotional or campaign message here..."></textarea>
-      <div class="message-actions">
-        <button id="btn-save-message" class="btn secondary">Save Message</button>
+  <!-- ===== Accounts ===== -->
+  <section class="view" id="view-accounts">
+    <div class="grid g-split">
+      <div class="card">
+        <div class="card-h"><div><h3>WhatsApp accounts</h3><p>The active account is used for connecting and campaigns</p></div></div>
+        <div class="card-b">
+          <div class="table-wrap"><table>
+            <thead><tr><th>Account</th><th>Status</th><th>Proxy</th><th>Sent</th><th>Failed</th><th></th></tr></thead>
+            <tbody id="accBody"></tbody>
+          </table></div>
+        </div>
       </div>
-    </section>
+      <div class="grid" style="align-content:start">
+        <div class="card">
+          <div class="card-h"><div><h3>Add account</h3><p>Give each line a clear name</p></div></div>
+          <div class="card-b">
+            <div class="input-group"><input class="input" id="accName" placeholder="e.g. Sales Line 2" maxlength="30"><button class="btn primary" id="addAcc">Add</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div><h3>Account rotation</h3><p>Linked accounts take turns while sending</p></div></div>
+          <div class="card-b">
+            <label class="switch field"><input type="checkbox" id="rotOn"><span class="track"></span><span><b>Auto-rotate linked accounts</b><small>Each sends up to the limit, then the next continues</small></span></label>
+            <div class="grid g2">
+              <div><label class="f">Switch after</label><div class="suffix"><input class="input" type="number" id="rotAfter" min="1" value="50"><span>msgs</span></div></div>
+              <div><label class="f">Switch pause</label><div class="suffix"><input class="input" type="number" id="rotPause" min="0" value="60"><span>sec</span></div></div>
+            </div>
+            <button class="btn block" style="margin-top:16px" id="saveRot">Save rotation settings</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <!-- Anti-Ban Delay Panel -->
-    <section class="panel delay-panel">
-      <h2>Anti-Ban Protection</h2>
-      <p class="hint">Randomized wait time between messages (in seconds).</p>
-      <div class="delay-inputs">
-        <label>
-          Min Delay (s)
-          <input id="delay-min" type="number" min="1" value="120" />
-        </label>
-        <label>
-          Max Delay (s)
-          <input id="delay-max" type="number" min="1" value="240" />
-        </label>
+  <!-- ===== Contacts ===== -->
+  <section class="view" id="view-contacts">
+    <div class="grid g-split">
+      <div class="card">
+        <div class="card-h"><div><h3>Imported numbers</h3><p><span id="conCount">0</span> numbers in the queue</p></div><div class="spacer"></div><button class="btn danger sm" id="clearNums">Clear list</button></div>
+        <div class="card-b">
+          <div id="chips" class="chips"></div>
+          <div class="empty" id="chipsEmpty"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8"/></svg><div>No numbers yet. Import a file or add them manually.</div></div>
+        </div>
       </div>
-      <button id="btn-save-delay" class="btn secondary">Save Delay Settings</button>
-    </section>
+      <div class="grid" style="align-content:start">
+        <div class="card">
+          <div class="card-h"><div><h3>Bulk import</h3><p>.txt file, one number per line</p></div></div>
+          <div class="card-b">
+            <div class="drop" id="drop"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><b>Drop a .txt file or click to browse</b><span>International format, no “+”</span></div>
+            <input type="file" id="file" accept=".txt,text/plain" hidden>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div><h3>Add manually</h3><p>Separate with commas, spaces or new lines</p></div></div>
+          <div class="card-b">
+            <textarea class="textarea mono" id="manual" style="min-height:90px" placeholder="905551234567, 905559876543"></textarea>
+            <button class="btn primary block" style="margin-top:12px" id="addNums">Add to list</button>
+            <div class="hint">Duplicates and invalid numbers are skipped automatically.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <!-- AI Auto-Reply Panel -->
-    <section class="panel">
-      <h2>AI-Powered Auto-Reply</h2>
-      <label class="checkbox-label">
-        <input id="autoreply-enabled" type="checkbox" />
-        Enable AI Auto-Reply
-      </label>
-      <label class="input-label">
-        Provider
-        <select id="autoreply-provider" class="input-select"></select>
-      </label>
-      <label class="input-label">
-        Model (pick a suggestion or type any model id your provider supports)
-        <input id="autoreply-model" type="text" list="model-suggestions" placeholder="e.g. gpt-4o-mini" autocomplete="off" />
-        <datalist id="model-suggestions"></datalist>
-      </label>
-      <label class="input-label">
-        API Key
-        <input id="ai-api-key" type="password" placeholder="Paste your API key..." autocomplete="off" />
-      </label>
-      <p class="hint">Your key is kept in server memory only — never saved to disk — and is never shown in the UI again (only a hint like "sk-…ab12"). Re-enter it after restarting the tool.</p>
-      <button id="btn-save-autoreply" class="btn secondary">Save Auto-Reply Settings</button>
-    </section>
+  <!-- ===== Campaign ===== -->
+  <section class="view" id="view-campaign">
+    <div class="grid g-split">
+      <div class="grid" style="align-content:start">
+        <div class="card">
+          <div class="card-h"><div><h3>Campaign message</h3><p>Only message people who have opted in to hear from you</p></div></div>
+          <div class="card-b">
+            <textarea class="textarea" id="msg" placeholder="Type your campaign message here…"></textarea>
+            <div class="row" style="margin-top:12px"><span class="hint" id="msgCount" style="margin:0">0 characters</span><div class="spacer"></div><button class="btn primary" id="saveMsg">Save message</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div><h3>Sending delay</h3><p>Randomized wait time between messages</p></div></div>
+          <div class="card-b">
+            <div class="grid g2">
+              <div><label class="f">Minimum delay</label><div class="suffix"><input class="input" type="number" id="dMin" min="1" value="120"><span>sec</span></div></div>
+              <div><label class="f">Maximum delay</label><div class="suffix"><input class="input" type="number" id="dMax" min="1" value="240"><span>sec</span></div></div>
+            </div>
+            <button class="btn block" style="margin-top:16px" id="saveDelay">Save delay settings</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="align-self:start">
+        <div class="card-h"><div><h3>Live preview</h3><p>How your message will look</p></div></div>
+        <div class="card-b"><div class="phone"><div class="phone-h"><div class="avatar">C</div><div><b style="font-size:13px">Contact</b><small>online</small></div></div><div class="chat"><div class="bubble"><span id="prev">Your message will appear here…</span><time>12:00 ✓✓</time></div></div></div></div>
+      </div>
+    </div>
+  </section>
 
-    <!-- Execution Panel -->
-    <section class="panel execution-panel">
-      <h2>Campaign Execution</h2>
-      <div class="execution-controls">
-        <button id="btn-start" class="btn start">Start Bot</button>
-        <button id="btn-stop" class="btn stop" disabled>Stop Bot</button>
+  <!-- ===== Automation ===== -->
+  <section class="view" id="view-automation">
+    <div class="card" style="max-width:720px">
+      <div class="card-h"><div><h3>AI-powered auto-reply</h3><p>Answer incoming replies automatically using your chosen provider</p></div></div>
+      <div class="card-b">
+        <label class="switch field"><input type="checkbox" id="aiOn"><span class="track"></span><span><b>Enable AI auto-reply</b><small>Replies are generated per incoming message</small></span></label>
+        <div class="field"><label class="f">Provider</label><select class="select" id="aiProvider"></select></div>
+        <div class="field"><label class="f">Model (pick a suggestion or type any model id)</label>
+          <input class="input mono" id="aiModel" type="text" list="modelSuggestions" placeholder="e.g. gpt-4o-mini">
+          <datalist id="modelSuggestions"></datalist>
+        </div>
+        <div class="field"><label class="f">API key</label>
+          <div class="input-group"><input class="input mono" type="password" id="aiKey" placeholder="Paste your API key…" autocomplete="off"><button class="btn icon-btn" id="eye" title="Show / hide"><svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+          <div class="hint">Stored in server memory only — never saved to disk. Re-enter after a restart.</div>
+        </div>
+        <button class="btn primary" id="saveAi">Save auto-reply settings</button>
       </div>
-      <div class="progress-bar">
-        <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+    </div>
+  </section>
+
+  <!-- ===== Connection ===== -->
+  <section class="view" id="view-connection">
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-h"><div><h3>WhatsApp connection</h3><p>Link the active account to this dashboard</p></div></div>
+        <div class="card-b">
+          <div class="row" style="flex-wrap:wrap">
+            <button class="btn primary" id="qrBtn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h3M20 17v4"/></svg>Connect with QR</button>
+            <button class="btn" id="discBtn">Disconnect</button>
+            <button class="btn danger" id="resetBtn">Logout &amp; reset</button>
+          </div>
+          <div class="sep"></div>
+          <label class="f">Or link with your phone number</label>
+          <div class="input-group"><input class="input mono" id="phone" placeholder="905551234567"><button class="btn" id="pairBtn">Get pairing code</button></div>
+          <div class="hint">International format, no “+”.</div>
+        </div>
       </div>
-      <div class="stats">
-        <div>Total: <strong id="stat-total">0</strong></div>
-        <div>Sent: <strong id="stat-sent">0</strong></div>
-        <div>Failed: <strong id="stat-failed">0</strong></div>
-        <div>Remaining: <strong id="stat-remaining">0</strong></div>
+      <div class="card">
+        <div class="card-h"><div><h3>Proxy</h3><p>Saved per account · applies on next connect</p></div></div>
+        <div class="card-b">
+          <label class="f">Proxy server</label>
+          <input class="input mono" id="proxy" placeholder="host:port or http://user:pass@host:port">
+          <button class="btn block" style="margin-top:16px" id="setProxy">Save proxy for active account</button>
+        </div>
       </div>
-    </section>
+    </div>
+  </section>
+
   </main>
+</div>
+</div>
 
-  <footer class="app-footer">
-    <div id="status-bar">Durum: Hazır ve Bekleniyor... / Status: Ready and Waiting...</div>
-  </footer>
+<!-- QR / pairing modal -->
+<div class="modal" id="modal"><div class="dialog">
+  <h3 id="mTitle">Scan to connect</h3><p class="hint" id="mSub" style="margin:0">Open WhatsApp › Linked devices › Link a device.</p>
+  <div id="mBody"></div>
+  <button class="btn block" id="mClose">Close</button>
+</div></div>
+<div class="toasts" id="toasts"></div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="renderer.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js"></script>
 </body>
 </html>

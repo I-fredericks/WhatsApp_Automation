@@ -62,7 +62,7 @@ app.use((_req, res, next) => {
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+    "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
   );
   next();
 });
@@ -502,4 +502,13 @@ process.on('SIGINT', async () => {
   await whatsappClient.destroy();
   autoReplyService.stop();
   process.exit(0);
+});
+
+// Never let a library-internal rejection (e.g. whatsapp-web.js "auth
+// timeout") kill the whole dashboard server.
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection (server kept running):', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception (server kept running):', err);
 });

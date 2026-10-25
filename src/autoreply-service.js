@@ -192,8 +192,12 @@ class AutoReplyService extends EventEmitter {
       if (!this._enabled || !this._openai) {
         return;
       }
-      // Ignore messages sent by ourselves and group chats.
-      if (msg.fromMe || !msg.from || !msg.from.endsWith('@c.us')) {
+      // Ignore messages sent by ourselves and group chats. Private chats
+      // arrive as legacy @c.us or LID-migrated @lid JIDs — reply to both.
+      if (msg.fromMe || !msg.from || msg.from.endsWith('@g.us')) {
+        return;
+      }
+      if (!msg.from.endsWith('@c.us') && !msg.from.endsWith('@lid')) {
         return;
       }
       // Cooldown per chat so two bots cannot loop each other and drain
