@@ -200,6 +200,7 @@
     if (cfg.provider && aiProviders[cfg.provider]) $('aiProvider').value = cfg.provider;
     updateModelSuggestions();
     $('aiModel').value = cfg.model || '';
+    $('aiBiz').value = cfg.businessContext || '';
   });
   socket.on('autoreply:replied', ({ to }) => log('AI replied to ' + to));
   socket.on('whatsapp:qr', (qrDataUrl) => { modal('Scan to connect', 'Open WhatsApp › Linked devices › Link a device.', '<div class="qr"><img src="' + esc(qrDataUrl) + '" alt="QR code"></div>'); });
@@ -283,7 +284,7 @@
   /* ---------- automation ---------- */
   $('eye').onclick = () => { const k = $('aiKey'); k.type = k.type === 'password' ? 'text' : 'password'; };
   $('saveAi').onclick = () => {
-    const opts = { enabled: $('aiOn').checked, provider: $('aiProvider').value, model: $('aiModel').value.trim(), apiKey: $('aiKey').value.trim() };
+    const opts = { enabled: $('aiOn').checked, provider: $('aiProvider').value, model: $('aiModel').value.trim(), apiKey: $('aiKey').value.trim(), businessContext: $('aiBiz').value.trim() };
     if (opts.enabled && !opts.apiKey && !aiConfig.keyHint) return toast('Enter an API key to enable auto-reply', 'err');
     socket.emit('autoreply:configure', opts, (res) => {
       if (res.success) {

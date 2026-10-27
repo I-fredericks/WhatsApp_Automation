@@ -79,6 +79,22 @@ const MODEL_PATTERN = /^[A-Za-z0-9._:/-]{1,120}$/;
 const KEY_PATTERN = /^[A-Za-z0-9._~+/=-]{8,256}$/;
 const MAX_INCOMING_CHARS = 2000;
 const REPLY_COOLDOWN_MS = 2000;
+const MAX_HISTORY_ENTRIES = 20;
+const MAX_CHATS = 500;
+const MAX_BUSINESS_CONTEXT_CHARS = 2000;
+
+/**
+ * Keep a Map within a size limit by dropping its oldest entry (Map preserves
+ * insertion order, so the first key is the oldest).
+ * @param {Map} map
+ * @param {number} max
+ */
+function evictOldest(map, max) {
+  while (map.size > max) {
+    const oldestKey = map.keys().next().value;
+    map.delete(oldestKey);
+  }
+}
 
 class AutoReplyService extends EventEmitter {
   constructor(whatsappClient) {
@@ -89,9 +105,12 @@ class AutoReplyService extends EventEmitter {
     this._apiKey = null;
     this._model = 'gpt-4o-mini';
     this._systemPrompt = SYSTEM_PROMPT;
+    this._businessContext = '';
     this._openai = null;
     this._handler = null;
     this._lastReplyAt = new Map();
+    this._history = new Map();
+    this._campaignByChat = new Map();
   }
 
   /**
@@ -153,6 +172,9 @@ class AutoReplyService extends EventEmitter {
     if (options.systemPrompt && typeof options.systemPrompt === 'string') {
       this._systemPrompt = options.systemPrompt.slice(0, 2000);
     }
+    if (options.businessContext !== undefined && options.businessContext !== null) {
+      this._businessContext = String(options.businessContext).trim().slice(0, MAX_BUSINESS_CONTEXT_CHARS);
+    }
 
     if (this._enabled && this._apiKey) {
       const cfg = PROVIDERS[provider];
@@ -170,7 +192,7 @@ class AutoReplyService extends EventEmitter {
 
   /**
    * Current state. Never includes the raw API key.
-   * @returns {{enabled: boolean, provider: string, model: string, keyHint: string|null}}
+   * @returns {{enabled: boolean, provider: string, model: string, keyHint: string|null, businessContext: string}}
    */
   getConfig() {
     return {
@@ -178,7 +200,82 @@ class AutoReplyService extends EventEmitter {
       provider: this._provider,
       model: this._model,
       keyHint: AutoReplyService.maskKey(this._apiKey),
+      businessContext: this._businessContext,
     };
+  }
+
+  /**
+   * Normalize a JID or raw number to a stable chat key (digits only).
+   * Note: @lid JIDs use WhatsApp's internal id rather than the phone number,
+   * so campaign context may not match there — conversation history still
+   * works because it is keyed consistently on the same string.
+   * @param {string} jidOrNumber
+   * @returns {string|null}
+   */
+  static chatKey(jidOrNumber) {
+    const digits = String(jidOrNumber || '').replace(/\D/g, '');
+    return digits.length >= 6 ? digits : null;
+  }
+
+  /**
+   * Record an outgoing business message so the AI knows what this contact
+   * was sent. Campaign messages are kept separately and always injected as
+   * context, even if they scroll out of the recent history window.
+   * @param {string} rawNumber chat the message was sent to
+   * @param {string} text message body
+   * @param {'campaign'|'manual'} [kind]
+   */
+  noteOutgoingMessage(rawNumber, text, kind = 'campaign') {
+    const chatKey = AutoReplyService.chatKey(rawNumber);
+    const body = String(text || '').trim();
+    if (!chatKey || !body) {
+      return;
+    }
+    if (kind === 'campaign') {
+      this._campaignByChat.set(chatKey, body.slice(0, MAX_INCOMING_CHARS));
+    }
+    this._pushHistory(chatKey, { role: 'assistant', content: body.slice(0, MAX_INCOMING_CHARS) });
+  }
+
+  /**
+   * Append an entry to a chat's history, evicting the oldest chat when the
+   * store grows past its cap.
+   * @param {string} chatKey
+   * @param {{role: string, content: string}} entry
+   */
+  _pushHistory(chatKey, entry) {
+    const history = this._history.get(chatKey) || [];
+    history.push(entry);
+    if (history.length > MAX_HISTORY_ENTRIES) {
+      history.splice(0, history.length - MAX_HISTORY_ENTRIES);
+    }
+    this._history.set(chatKey, history);
+    evictOldest(this._history, MAX_CHATS);
+    evictOldest(this._campaignByChat, MAX_CHATS);
+  }
+
+  /**
+   * Build the prompt messages for a chat: system prompt + business info +
+   * the campaign sent to this contact + the recent conversation history.
+   * @param {string} chatKey
+   * @returns {Array<{role: string, content: string}>}
+   */
+  _buildMessages(chatKey) {
+    const parts = [this._systemPrompt];
+    if (this._businessContext) {
+      parts.push(`Business information:\n${this._businessContext}`);
+    }
+    const campaign = this._campaignByChat.get(chatKey);
+    if (campaign) {
+      parts.push(
+        'You previously sent this exact campaign message to this contact:\n' +
+        `"${campaign}"\n` +
+        'Their new message is a reply to it — answer in that context. If they ask for details such as price, timing, or how to order, respond based on this campaign unless the business information says otherwise.',
+      );
+    }
+    const history = this._history.get(chatKey) || [];
+    const recent = history.slice(-MAX_HISTORY_ENTRIES).map((entry) => ({ ...entry }));
+    return [{ role: 'system', content: parts.join('\n\n') }, ...recent];
   }
 
   /**
@@ -210,12 +307,18 @@ class AutoReplyService extends EventEmitter {
       this._lastReplyAt.set(msg.from, now);
 
       try {
+        const chatKey = AutoReplyService.chatKey(msg.from);
+        const incoming = String(msg.body || '').slice(0, MAX_INCOMING_CHARS);
+        if (chatKey && incoming) {
+          this._pushHistory(chatKey, { role: 'user', content: incoming });
+        }
+
         this.emit('status', `AI auto-reply thinking for ${msg.from}...`);
         const completion = await this._openai.chat.completions.create({
           model: this._model,
-          messages: [
+          messages: chatKey ? this._buildMessages(chatKey) : [
             { role: 'system', content: this._systemPrompt },
-            { role: 'user', content: String(msg.body || '').slice(0, MAX_INCOMING_CHARS) },
+            { role: 'user', content: incoming },
           ],
           max_tokens: 300,
           temperature: 0.7,
@@ -223,6 +326,9 @@ class AutoReplyService extends EventEmitter {
 
         const reply = completion.choices[0]?.message?.content?.trim().slice(0, 1000);
         if (reply) {
+          if (chatKey) {
+            this._pushHistory(chatKey, { role: 'assistant', content: reply });
+          }
           await msg.reply(reply);
           this.emit('replied', { to: msg.from, reply });
         }

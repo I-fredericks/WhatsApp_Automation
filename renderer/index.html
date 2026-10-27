@@ -390,6 +390,10 @@ tr:last-child td{border-bottom:0}
           <div class="input-group"><input class="input mono" type="password" id="aiKey" placeholder="Paste your API key…" autocomplete="off"><button class="btn icon-btn" id="eye" title="Show / hide"><svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
           <div class="hint">Stored in server memory only — never saved to disk. Re-enter after a restart.</div>
         </div>
+        <div class="field"><label class="f">Business info (optional)</label>
+          <textarea class="input" id="aiBiz" rows="4" placeholder="Describe your business, prices, working hours, how to order… The AI reads this plus the campaign message when answering replies."></textarea>
+          <div class="hint">The AI also sees the exact campaign message each contact received, so replies stay in context.</div>
+        </div>
         <button class="btn primary" id="saveAi">Save auto-reply settings</button>
       </div>
     </div>

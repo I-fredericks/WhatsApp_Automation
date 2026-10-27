@@ -136,4 +136,96 @@ describe('AutoReplyService', () => {
     assert.ok(!errors[0].includes('sk-supersecret99'));
     assert.ok(errors[0].includes('***'));
   });
+
+  describe('campaign context', () => {
+    it('includes the campaign message and business info in the prompt', async () => {
+      service.configure({
+        enabled: true,
+        provider: 'openai',
+        apiKey: 'sk-test-12345678',
+        model: 'gpt-4o-mini',
+        businessContext: 'We sell coffee subscriptions. Price is 10 USD/month.',
+      });
+      service.noteOutgoingMessage('905551111111', 'Special offer: 50% off coffee this week!', 'campaign');
+      service._openai = {
+        chat: {
+          completions: {
+            create: async (params) => {
+              service._lastPrompt = params.messages;
+              return { choices: [{ message: { content: 'Yes, the offer applies!' } }] };
+            },
+          },
+        },
+      };
+
+      service.start();
+      client.emit('message', makeIncomingMessage({ body: 'Does the offer still work?' }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const messages = service._lastPrompt;
+      const system = messages.find((m) => m.role === 'system');
+      assert.ok(system.content.includes('coffee subscriptions'));
+      assert.ok(system.content.includes('Special offer: 50% off coffee this week!'));
+      const roles = messages.map((m) => m.role);
+      assert.deepStrictEqual(roles, ['system', 'assistant', 'user']);
+      assert.strictEqual(messages[1].content, 'Special offer: 50% off coffee this week!');
+      assert.strictEqual(messages[2].content, 'Does the offer still work?');
+    });
+
+    it('matches @c.us JIDs to campaign numbers by digits', () => {
+      service.noteOutgoingMessage('905551111111', 'Campaign X', 'campaign');
+      assert.strictEqual(service._campaignByChat.get('905551111111'), 'Campaign X');
+      assert.ok(AutoReplyService.chatKey('+90 555 111 11 11@c.us'.replace('@c.us', '')) === '905551111111');
+    });
+
+    it('keeps conversation history across replies', async () => {
+      service.configure({ enabled: true, provider: 'openai', apiKey: 'sk-test-12345678', model: 'gpt-4o-mini' });
+      const answers = ['First reply', 'Second reply'];
+      service._openai = {
+        chat: {
+          completions: {
+            create: async (params) => {
+              service._lastPrompt = params.messages;
+              return { choices: [{ message: { content: answers.shift() } }] };
+            },
+          },
+        },
+      };
+
+      service.start();
+      client.emit('message', makeIncomingMessage({ body: 'first question' }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      // second message after cooldown
+      service._lastReplyAt.set('905551111111@c.us', 0);
+      client.emit('message', makeIncomingMessage({ body: 'second question' }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const messages = service._lastPrompt;
+      const roles = messages.map((m) => m.role);
+      assert.deepStrictEqual(roles, ['system', 'user', 'assistant', 'user']);
+      assert.strictEqual(messages[2].content, 'First reply');
+      assert.strictEqual(messages[3].content, 'second question');
+    });
+
+    it('caps history per chat', async () => {
+      service.configure({ enabled: true, provider: 'openai', apiKey: 'sk-test-12345678', model: 'gpt-4o-mini' });
+      for (let i = 0; i < 30; i++) {
+        service._pushHistory('900000000000', { role: 'user', content: 'msg ' + i });
+      }
+      const history = service._history.get('900000000000');
+      assert.ok(history.length <= 20, `history length ${history.length} should be capped`);
+      assert.strictEqual(history[history.length - 1].content, 'msg 29');
+    });
+
+    it('round-trips businessContext through config', () => {
+      const result = service.configure({
+        enabled: false,
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        businessContext: ' Bakery shop. Open 9-5. ',
+      });
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.config.businessContext, 'Bakery shop. Open 9-5.');
+    });
+  });
 });

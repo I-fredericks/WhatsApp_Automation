@@ -23,7 +23,7 @@ WhatsApp Bulk Campaign Tool v1 — a Node.js web dashboard for bulk WhatsApp mes
 - `src/whatsapp-client.js` — WhatsApp client wrapper (per-account sessions)
 - `src/account-manager.js` — multi-account registry, session dirs, per-account stats
 - `src/campaign-service.js` — bulk messaging logic with randomized delays
-- `src/autoreply-service.js` — AI auto-reply via OpenAI-compatible APIs (OpenAI, DeepSeek, Kimi, Z.ai GLM, OpenRouter, Anthropic, Groq, Gemini, xAI, Mistral); key held in memory only, never persisted or broadcast (config exposes `keyHint` masked)
+- `src/autoreply-service.js` — AI auto-reply via OpenAI-compatible APIs (OpenAI, DeepSeek, Kimi, Z.ai GLM, OpenRouter, Anthropic, Groq, Gemini, xAI, Mistral); key held in memory only, never persisted or broadcast (config exposes `keyHint` masked). Contextual replies: per-chat history (capped 20 entries / 500 chats) plus the exact campaign message sent to each contact are injected into the prompt, alongside an optional user-provided `businessContext`. Outgoing campaign and manual sends are fed via `autoreplyService.noteOutgoingMessage()` from `main.js`.
 - `src/license-service.js` — simple VIP license state
 - `src/utils.js` — phone number parsing and delay helpers
 - `renderer/` — static frontend (HTML/CSS/JS)

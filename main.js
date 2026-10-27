@@ -178,6 +178,7 @@ function setupEventForwarding() {
     if (active) {
       accountManager.recordSent(active.id);
     }
+    autoReplyService.noteOutgoingMessage(number, currentCampaignMessage, 'campaign');
     broadcast('status', `Sent to ${number} (${index})`);
   });
   campaignService.on('messageFailed', ({ number, index, error }) => {
@@ -446,6 +447,7 @@ function setupSocketHandlers() {
           accountManager.recordSent(active.id);
           broadcast('accounts:updated', accountManager.list());
         }
+        autoReplyService.noteOutgoingMessage(number, text, 'manual');
         cb({ success: true, messageId: msg && msg.id ? msg.id._serialized || msg.id.id : null });
       } catch (err) {
         const active = accountManager.getActive();

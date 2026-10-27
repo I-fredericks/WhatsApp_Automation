@@ -9,6 +9,16 @@
         "sent": 5,
         "failed": 0
       }
+    },
+    {
+      "id": "acct_552c9796",
+      "label": "Account 2",
+      "createdAt": "2026-10-27T04:28:09.473Z",
+      "proxy": null,
+      "stats": {
+        "sent": 2,
+        "failed": 0
+      }
     }
   ],
   "activeId": "acct_ddb71a2a"
