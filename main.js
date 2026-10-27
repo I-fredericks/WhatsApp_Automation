@@ -478,6 +478,17 @@ function setupSocketHandlers() {
 setupEventForwarding();
 setupSocketHandlers();
 
+// Auto-reconnect the active account at startup when it has a linked session,
+// so the tool comes back online after being closed and re-opened without a
+// fresh QR scan.
+(function autoReconnectActiveAccount() {
+  const active = accountManager.getActive();
+  if (active && accountManager.hasSession(active.id)) {
+    whatsappClient.setProxy(active.proxy || null);
+    whatsappClient.initialize(active.id);
+  }
+})();
+
 server.listen(PORT, HOST, () => {
   // eslint-disable-next-line no-console
   console.log(`WhatsApp Bulk Campaign Tool running at http://${HOST}:${PORT}`);
